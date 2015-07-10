@@ -580,8 +580,7 @@ order by fk.name, fkc.constraint_column_id
           }
         }
 
-        private void LoadColumns(SqlCommand cm, string defaultCollationName)
-        {
+        private void LoadColumns(SqlCommand cm, string defaultCollationName) {
           //get columns
 			cm.CommandText = @"
 				select 
@@ -606,7 +605,7 @@ order by fk.name, fkc.constraint_column_id
 				order by t.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION
 ";
           using (SqlDataReader dr = cm.ExecuteReader()) {
-            LoadColumnsBase(dr, Tables);
+            LoadColumnsBase(dr, Tables, defaultCollationName);
           }
 
           try {
@@ -635,7 +634,7 @@ order by fk.name, fkc.constraint_column_id
 				order by s.name, tt.name, c.column_id
 ";
             using (SqlDataReader dr = cm.ExecuteReader()) {
-              LoadColumnsBase(dr, TableTypes);
+              LoadColumnsBase(dr, TableTypes, defaultCollationName);
             }
           }
           catch (SqlException) {
@@ -643,7 +642,7 @@ order by fk.name, fkc.constraint_column_id
           }
         }
 
-        private static void LoadColumnsBase(IDataReader dr, List<Table> tables) {
+        private static void LoadColumnsBase(IDataReader dr, List<Table> tables, string defaultCollationName) {
           Table table = null;
 
           while (dr.Read()) {
@@ -745,8 +744,8 @@ order by fk.name, fkc.constraint_column_id
 			}
 		}
 
-		private void LoadProps(SqlCommand cm)
-		{
+		private void LoadProps(SqlCommand cm, out string defaultCollationName) {
+		  defaultCollationName = null;
 			var cnStrBuilder = new SqlConnectionStringBuilder(Connection);
 			// query schema for database properties
 			cm.CommandText = @"
@@ -783,6 +782,7 @@ where name = @dbname
 					cm.Parameters.AddWithValue("@dbname", cnStrBuilder.InitialCatalog);
 			using (IDataReader dr = cm.ExecuteReader()) {
 				if (dr.Read()) {
+				  defaultCollationName = (string)dr["collation_name"];
 					SetPropString("COMPATIBILITY_LEVEL", dr["compatibility_level"]);
 					SetPropString("COLLATE", dr["collation_name"]);
 					SetPropOnOff("AUTO_CLOSE", dr["is_auto_close_on"]);
