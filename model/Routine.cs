@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 
-namespace model {
+namespace SchemaZen.model {
 	public class Routine {
 		public enum RoutineKind {
 			Procedure,
@@ -18,30 +19,64 @@ namespace model {
 		public string Schema;
 		public string Text;
 
+		private const string SqlCreateRegex = @"\A" + Database.SqlWhitespaceOrCommentRegex + @"*?(CREATE)" + Database.SqlWhitespaceOrCommentRegex;
+		private const string SqlCreateWithNameRegex = SqlCreateRegex + @"+{0}" + Database.SqlWhitespaceOrCommentRegex + @"+?(" + Database.SqlEnclosedIdentifierRegex + @"\." + Database.SqlEnclosedIdentifierRegex + @"|" + Database.SqlEnclosedIdentifierRegex + @"|\S+)(?:\(|" + Database.SqlWhitespaceOrCommentRegex + @")";
+
 		public Routine(string schema, string name) {
 			Schema = schema;
 			Name = name;
 		}
 
-		public string ScriptCreate(Database db) {
+		private string ScriptQuotedIdAndAnsiNulls(Database db, bool databaseDefaults)
+		{
 			string script = "";
 			bool defaultQuotedId = !QuotedId;
 			if (db != null && db.FindProp("QUOTED_IDENTIFIER") != null) {
 				defaultQuotedId = db.FindProp("QUOTED_IDENTIFIER").Value == "ON";
 			}
 			if (defaultQuotedId != QuotedId) {
-				script = string.Format(@"SET QUOTED_IDENTIFIER {0} {1}GO{1}",
-					(QuotedId ? "ON" : "OFF"), Environment.NewLine);
+				script += string.Format(@"SET QUOTED_IDENTIFIER {0} {1}GO{1}",
+					((databaseDefaults ? defaultQuotedId : QuotedId) ? "ON" : "OFF"), Environment.NewLine);
 			}
 			bool defaultAnsiNulls = !AnsiNull;
 			if (db != null && db.FindProp("ANSI_NULLS") != null) {
 				defaultAnsiNulls = db.FindProp("ANSI_NULLS").Value == "ON";
 			}
 			if (defaultAnsiNulls != AnsiNull) {
-				script = string.Format(@"SET ANSI_NULLS {0} {1}GO{1}",
-					(AnsiNull ? "ON" : "OFF"), Environment.NewLine);
+				script += string.Format(@"SET ANSI_NULLS {0} {1}GO{1}",
+					((databaseDefaults ? defaultAnsiNulls : AnsiNull) ? "ON" : "OFF"), Environment.NewLine);
 			}
-			return script + Text;
+			return script;
+		}
+
+		private string ScriptBase(Database db, string definition)
+		{
+			var before = ScriptQuotedIdAndAnsiNulls(db, false);
+			var after = ScriptQuotedIdAndAnsiNulls(db, true);
+			if (after != string.Empty)
+				after = Environment.NewLine + "GO" + Environment.NewLine + after;
+			
+			// correct the name if it is incorrect
+			var regex = new Regex(string.Format(SqlCreateWithNameRegex, GetSQLTypeForRegEx()), RegexOptions.IgnoreCase | RegexOptions.Singleline);
+			var match = regex.Match(definition);
+			var group = match.Groups[2];
+			if (group.Success)
+			{
+				definition = Text.Substring(0, group.Index) + string.Format("[{0}].[{1}]", Schema, Name) + Text.Substring(group.Index + group.Length);
+			}
+			return before + definition + after;
+		}
+
+		public string ScriptCreate(Database db) {
+			return ScriptBase(db, Text);
+		}
+
+		public string GetSQLTypeForRegEx() {
+			var text = GetSQLType();
+			if (RoutineType == RoutineKind.Procedure) // support shorthand - PROC
+				return "(?:" + text + "|" + text.Substring(0, 4) + ")";
+			else
+				return text;
 		}
 
 		public string GetSQLType() {
@@ -53,6 +88,19 @@ namespace model {
 
 		public string ScriptDrop() {
 			return string.Format("DROP {0} [{1}].[{2}]", GetSQLType(), Schema, Name);
+		}
+
+
+		public string ScriptAlter(Database db) {
+			if (RoutineType != RoutineKind.XmlSchemaCollection) {
+				var regex = new Regex(SqlCreateRegex, RegexOptions.IgnoreCase);
+				var match = regex.Match(Text);
+				var group = match.Groups[1];
+				if (group.Success) {
+					return ScriptBase(db, Text.Substring(0, group.Index) + "ALTER" + Text.Substring(group.Index + group.Length));
+				}
+			}
+			throw new Exception(string.Format("Unable to script routine {0} {1}.{2} as ALTER", RoutineType, Schema, Name));
 		}
 	}
 }

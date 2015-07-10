@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Data.SqlClient;
-using model;
 using NUnit.Framework;
+using SchemaZen.model;
 
-namespace test {
+namespace SchemaZen.test {
 	[SetUpFixture]
 	public class TestHelper {
 		public static bool EchoSql {
@@ -16,6 +16,7 @@ namespace test {
 			DBHelper.DropDb(conn);
 			DBHelper.CreateDb(conn);
 			SqlConnection.ClearAllPools();
+			// TODO: verify that database called "model" is empty, otherwise tests will fail because new databases are created with this as a template
 		}
 
 		public static void ExecSql(string sql, string dbName) {

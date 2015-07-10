@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.Remoting.Metadata.W3cXsd2001;
 using System.Text;
 
-namespace model {
+namespace SchemaZen.model {
 	public class Schema {
 		public string Name;
 		public string Owner;
@@ -28,6 +28,7 @@ namespace model {
 		public List<Constraint> Constraints = new List<Constraint>();
 		public string Name;
 		public string Owner;
+		public bool IsType;
 
 		public Table(string owner, string name) {
 			Owner = owner;
@@ -87,7 +88,7 @@ namespace model {
 
 		public string ScriptCreate() {
 			var text = new StringBuilder();
-			text.AppendFormat("CREATE TABLE [{0}].[{1}](\r\n", Owner, Name);
+			text.AppendFormat("CREATE {2} [{0}].[{1}] {3}(\r\n", Owner, Name, IsType ? "TYPE" : "TABLE", IsType ? "AS TABLE " : string.Empty);
 			text.Append(Columns.Script());
 			if (Constraints.Count > 0) text.AppendLine();
 			foreach (Constraint c in Constraints.Where(c => c.Type != "INDEX")) {
@@ -102,14 +103,17 @@ namespace model {
 		}
 
 		public string ScriptDrop() {
-			return string.Format("DROP TABLE [{0}].[{1}]", Owner, Name);
+			return string.Format("DROP {2} [{0}].[{1}]", Owner, Name, IsType ? "TYPE" : "TABLE");
 		}
 
 
 		public void ExportData(string conn, TextWriter data, string tableHint = null) {
+			if (IsType)
+				throw new InvalidOperationException();
+
 			var sql = new StringBuilder();
 			sql.Append("select ");
-			foreach (Column c in Columns.Items) {
+			foreach (Column c in Columns.Items.Where(c => string.IsNullOrEmpty(c.ComputedDefinition))) {
 				sql.AppendFormat("[{0}],", c.Name);
 			}
 			sql.Remove(sql.Length - 1, 1);
@@ -143,8 +147,11 @@ namespace model {
 		}
 
 		public void ImportData(string conn, TextReader reader) {
+			if (IsType)
+				throw new InvalidOperationException();
+
 			var dt = new DataTable();
-			foreach (Column c in Columns.Items) {
+			foreach (Column c in Columns.Items.Where(c => string.IsNullOrEmpty(c.ComputedDefinition))) {
 				dt.Columns.Add(new DataColumn(c.Name, SqlTypeToNativeType(c.Type)));
 			}
 			int i = 0;
@@ -174,7 +181,7 @@ namespace model {
 			    string[] fields = line.Split(new[] {
 			      fieldSeparator
 			    }, StringSplitOptions.None);
-			    if (fields.Length != Columns.Items.Count) {
+			    if (fields.Length != dt.Columns.Count) {
 			      throw new DataException("Incorrect number of columns", i);
 			    }
 			    for (int j = 0; j < fields.Length; j++) {
