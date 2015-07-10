@@ -161,8 +161,10 @@ from sys.databases
 where name = @dbname
 ";
 					cm.Parameters.AddWithValue("@dbname", cnStrBuilder.InitialCatalog);
+				  string defaultCollationName = null;
 					using (IDataReader dr = cm.ExecuteReader()) {
 						if (dr.Read()) {
+						  defaultCollationName = (string)dr["collation_name"];
 							SetPropString("COMPATIBILITY_LEVEL", dr["compatibility_level"]);
 							SetPropString("COLLATE", dr["collation_name"]);
 							SetPropOnOff("AUTO_CLOSE", dr["is_auto_close_on"]);
@@ -240,7 +242,8 @@ select s.name as schemaName, p.name as principalName
 						c.IS_NULLABLE,
 						c.CHARACTER_MAXIMUM_LENGTH,
 						c.NUMERIC_PRECISION,
-						c.NUMERIC_SCALE 
+						c.NUMERIC_SCALE,
+            c.COLLATION_NAME
 					from INFORMATION_SCHEMA.COLUMNS c
 						inner join INFORMATION_SCHEMA.TABLES t
 								on t.TABLE_NAME = c.TABLE_NAME
@@ -257,10 +260,18 @@ select s.name as schemaName, p.name as principalName
 							c.IsNullable = (string) dr["IS_NULLABLE"] == "YES";
 
 							switch (c.Type) {
-								case "binary":
+                case "nchar":
+                case "nvarchar": {
+                    var collationName = (string)dr["COLLATION_NAME"];
+                    if (collationName == defaultCollationName) {
+                      collationName = null;
+                    }
+                    c.CollationName = collationName;
+                    c.Length = (int)dr["CHARACTER_MAXIMUM_LENGTH"];
+                  }
+							    break;
+                case "binary":
 								case "char":
-								case "nchar":
-								case "nvarchar":
 								case "varbinary":
 								case "varchar":
 									c.Length = (int) dr["CHARACTER_MAXIMUM_LENGTH"];

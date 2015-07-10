@@ -11,6 +11,7 @@ namespace model {
 		public byte Precision;
 		public int Scale;
 		public string Type;
+    public string CollationName;
 
 		public Column() { }
 
@@ -37,6 +38,15 @@ namespace model {
 				return "NOT NULL";
 			}
 		}
+
+	  private string CollationNameText {
+	    get {
+	      if (CollationName != null) {
+	        return "COLLATE " + CollationName;
+	      }
+        return string.Empty;
+	    }
+	  }
 
 		public string DefaultText {
 			get {
@@ -91,7 +101,7 @@ namespace model {
 					string lengthString = Length.ToString();
 					if (lengthString == "-1") lengthString = "max";
 
-					return string.Format("[{0}] [{1}]({2}) {3} {4}", Name, Type, lengthString, IsNullableText, DefaultText);
+					return string.Format("[{0}] [{1}]({2}) {3} {4} {5}", Name, Type, lengthString, CollationNameText, IsNullableText, DefaultText);
 				case "decimal":
 				case "numeric":
 
