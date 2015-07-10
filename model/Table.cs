@@ -186,7 +186,7 @@ namespace model {
 			      }
 			    }
 			    dt.Rows.Add(row);
-			    if (dt.Rows.Count >= 1000000) {
+			    if (dt.Rows.Count >= 100000) {
 			      using (var bulk = new SqlBulkCopy(conn,
 			        SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
 			          BulkCopyTimeout = 600,
