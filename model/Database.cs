@@ -914,7 +914,9 @@ end
 					continue;
 				}
 				try {
-					t.ImportData(Connection, File.ReadAllText(fi.FullName));
+				  using (var reader = new StreamReader(new FileStream(fi.FullName, FileMode.Open, FileAccess.Read, FileShare.Read), Encoding.UTF8)) {
+				    t.ImportData(Connection, reader);
+				  }
 				} catch (DataException ex) {
 					throw new DataFileException(ex.Message, fi.FullName, ex.LineNumber);
 				} catch (SqlBatchException ex) {
@@ -927,14 +929,14 @@ end
 		}
 
 		public void CreateFromDir(bool overwrite) {
-			var cnBuilder = new SqlConnectionStringBuilder(Connection);
-			if (DBHelper.DbExists(Connection)) {
-				DBHelper.DropDb(Connection);
-			}
-
-			Console.WriteLine("Creating database...");
-			//create database
-			DBHelper.CreateDb(Connection);
+			//var cnBuilder = new SqlConnectionStringBuilder(Connection);
+			//if (DBHelper.DbExists(Connection)) {
+			//	DBHelper.DropDb(Connection);
+			//}
+      //
+			//Console.WriteLine("Creating database...");
+			////create database
+			//DBHelper.CreateDb(Connection);
 
 			//run scripts
 			if (File.Exists(Dir + "/props.sql")) {

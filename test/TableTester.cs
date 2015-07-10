@@ -88,7 +88,7 @@ namespace test {
 3	F	Frozen
 ";
 
-			t.ImportData(conn, dataIn);
+			t.ImportData(conn, new StringReader(dataIn));
 			var sw = new StringWriter();
 			t.ExportData(conn, sw);
 			Assert.AreEqual(dataIn, sw.ToString());

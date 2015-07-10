@@ -34,7 +34,7 @@ namespace console {
 			var builder = new SqlConnectionStringBuilder {
 				DataSource = Server,
 				InitialCatalog = DbName,
-				IntegratedSecurity = string.IsNullOrEmpty(User)
+				IntegratedSecurity = string.IsNullOrEmpty(User),
 			};
 			if (!builder.IntegratedSecurity) {
 				builder.UserID = User;

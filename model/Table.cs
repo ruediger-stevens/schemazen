@@ -119,7 +119,8 @@ namespace model {
 			using (var cn = new SqlConnection(conn)) {
 				cn.Open();
 				using (SqlCommand cm = cn.CreateCommand()) {
-					cm.CommandText = sql.ToString();
+          cm.CommandTimeout = 600;
+          cm.CommandText = sql.ToString();
 					using (SqlDataReader dr = cm.ExecuteReader()) {
 						while (dr.Read()) {
 							foreach (Column c in Columns.Items) {
@@ -141,35 +142,73 @@ namespace model {
 			}
 		}
 
-		public void ImportData(string conn, string data) {
+		public void ImportData(string conn, TextReader reader) {
 			var dt = new DataTable();
 			foreach (Column c in Columns.Items) {
 				dt.Columns.Add(new DataColumn(c.Name, SqlTypeToNativeType(c.Type)));
 			}
-			string[] lines = data.Split(new[] {rowSeparator}, StringSplitOptions.RemoveEmptyEntries);
 			int i = 0;
-			foreach (string line in lines) {
-				i++;
-				DataRow row = dt.NewRow();
-				string[] fields = line.Split(new[] {fieldSeparator}, StringSplitOptions.None);
-				if (fields.Length != Columns.Items.Count) {
-					throw new DataException("Incorrect number of columns", i);
-				}
-				for (int j = 0; j < fields.Length; j++) {
-					try {
-						row[j] = ConvertType(Columns.Items[j].Type,
-							fields[j].Replace(escapeRowSeparator, rowSeparator).Replace(escapeFieldSeparator, fieldSeparator));
-					} catch (FormatException ex) {
-						throw new DataException(string.Format("{0} at column {1}", ex.Message, j + 1), i);
-					}
-				}
-				dt.Rows.Add(row);
+      var sb = new StringBuilder();
+			while (true) {
+			  var ci = reader.Read();
+        string line = null;
+        if (ci >= 0)
+        {
+			    var c = (char)ci;
+			    sb.Append(c);
+			    if ((sb.Length >= rowSeparator.Length) && (string.CompareOrdinal(sb.ToString(sb.Length - rowSeparator.Length, rowSeparator.Length), rowSeparator) == 0)) {
+			      line = sb.ToString(0, sb.Length - rowSeparator.Length);
+			      sb.Length = 0;
+			    }
+			  } else {
+          line = sb.ToString();
+        }
+        if (string.IsNullOrEmpty(line))
+        {
+          line = null;
+        }
+        if (line != null)
+        {
+			    i++;
+			    DataRow row = dt.NewRow();
+			    string[] fields = line.Split(new[] {
+			      fieldSeparator
+			    }, StringSplitOptions.None);
+			    if (fields.Length != Columns.Items.Count) {
+			      throw new DataException("Incorrect number of columns", i);
+			    }
+			    for (int j = 0; j < fields.Length; j++) {
+			      try {
+			        row[j] = ConvertType(Columns.Items[j].Type,
+			          fields[j].Replace(escapeRowSeparator, rowSeparator).Replace(escapeFieldSeparator, fieldSeparator));
+			      } catch (FormatException ex) {
+			        throw new DataException(string.Format("{0} at column {1}", ex.Message, j + 1), i);
+			      }
+			    }
+			    dt.Rows.Add(row);
+			    if (dt.Rows.Count >= 1000000) {
+			      using (var bulk = new SqlBulkCopy(conn,
+			        SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
+			          BulkCopyTimeout = 600,
+			        }) {
+			        bulk.DestinationTableName = Name;
+			        bulk.WriteToServer(dt);
+			      }
+			      dt.Rows.Clear();
+			    }
+			  }
+			  if (ci < 0) {
+			    break;
+			  }
 			}
 
-			var bulk = new SqlBulkCopy(conn,
-				SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock);
-			bulk.DestinationTableName = Name;
-			bulk.WriteToServer(dt);
+		  using (var bulk = new SqlBulkCopy(conn,
+		    SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
+		      BulkCopyTimeout = 600,
+		    }) {
+		    bulk.DestinationTableName = Name;
+		    bulk.WriteToServer(dt);
+		  }
 		}
 
 		private static Type SqlTypeToNativeType(string sqlType) {

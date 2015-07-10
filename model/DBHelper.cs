@@ -10,7 +10,8 @@ namespace model {
 			using (var cn = new SqlConnection(conn)) {
 				cn.Open();
 				using (SqlCommand cm = cn.CreateCommand()) {
-					cm.CommandText = sql;
+          cm.CommandTimeout = 600;
+          cm.CommandText = sql;
 					cm.ExecuteNonQuery();
 				}
 			}
@@ -21,6 +22,7 @@ namespace model {
 			using (var cn = new SqlConnection(conn)) {
 				cn.Open();
 				using (SqlCommand cm = cn.CreateCommand()) {
+				  cm.CommandTimeout = 600;
 					foreach (string script in BatchSqlParser.SplitBatch(sql)) {
 						if (EchoSql) Console.WriteLine(script);
 						cm.CommandText = script;
@@ -66,7 +68,8 @@ namespace model {
 			using (var cn = new SqlConnection(cnBuilder.ToString())) {
 				cn.Open();
 				using (SqlCommand cm = cn.CreateCommand()) {
-					cm.CommandText = "select db_id('" + dbName + "')";
+          cm.CommandTimeout = 600;
+          cm.CommandText = "select db_id('" + dbName + "')";
 					exists = (!ReferenceEquals(cm.ExecuteScalar(), DBNull.Value));
 				}
 			}
