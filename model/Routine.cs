@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace SchemaZen.model {
 	public class Routine {
@@ -57,13 +61,35 @@ namespace SchemaZen.model {
 				after = Environment.NewLine + "GO" + Environment.NewLine + after;
 			
 			// correct the name if it is incorrect
-			var regex = new Regex(string.Format(SqlCreateWithNameRegex, GetSQLTypeForRegEx()), RegexOptions.IgnoreCase | RegexOptions.Singleline);
+			IList<ParseError> errors;
+			TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(definition), out errors);
+			var id = script.ScriptTokenStream.TakeWhile(
+				t => t.TokenType != TSqlTokenType.As && t.TokenType != TSqlTokenType.Variable)
+				.Where(
+					t =>
+						t.TokenType == TSqlTokenType.Identifier || t.TokenType == TSqlTokenType.QuotedIdentifier ||
+						t.TokenType == TSqlTokenType.Dot);
+			var replaced = false;
+			definition = string.Join(string.Empty, script.ScriptTokenStream.Select(t => {
+				if (id.Contains(t)) {
+					if (replaced)
+						return string.Empty;
+					else {
+						replaced = true;
+						return string.Format("[{0}].[{1}]", Schema, Name);
+					}
+				} else {
+					return t.Text;
+				}
+			}));
+
+			/*var regex = new Regex(string.Format(SqlCreateWithNameRegex, GetSQLTypeForRegEx()), RegexOptions.IgnoreCase | RegexOptions.Singleline);
 			var match = regex.Match(definition);
 			var group = match.Groups[2];
 			if (group.Success)
 			{
 				definition = Text.Substring(0, group.Index) + string.Format("[{0}].[{1}]", Schema, Name) + Text.Substring(group.Index + group.Length);
-			}
+			}*/
 			return before + definition + after;
 		}
 
@@ -92,15 +118,37 @@ namespace SchemaZen.model {
 
 
 		public string ScriptAlter(Database db) {
+			bool replaced = false;
+			string alter = null;
 			if (RoutineType != RoutineKind.XmlSchemaCollection) {
-				var regex = new Regex(SqlCreateRegex, RegexOptions.IgnoreCase);
+				/*var regex = new Regex(SqlCreateRegex, RegexOptions.IgnoreCase);
 				var match = regex.Match(Text);
 				var group = match.Groups[1];
 				if (group.Success) {
 					return ScriptBase(db, Text.Substring(0, group.Index) + "ALTER" + Text.Substring(group.Index + group.Length));
-				}
+				}*/
+				IList<ParseError> errors;
+				TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(Text), out errors);
+				
+				alter = ScriptBase(db, string.Join(string.Empty, script.ScriptTokenStream.Select(t =>
+				{
+					if (t.TokenType == TSqlTokenType.Create && !replaced)
+					{
+						replaced = true;
+						return "ALTER";
+					}
+					else
+					{
+						return t.Text;
+					}
+				})));
 			}
-			throw new Exception(string.Format("Unable to script routine {0} {1}.{2} as ALTER", RoutineType, Schema, Name));
+			if (replaced)
+				return alter;
+			else
+				throw new Exception(string.Format("Unable to script routine {0} {1}.{2} as ALTER", RoutineType, Schema, Name));
 		}
 	}
+
 }
+
