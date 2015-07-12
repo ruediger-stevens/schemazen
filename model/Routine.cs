@@ -67,7 +67,8 @@ namespace SchemaZen.model {
 			TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(definition), out errors);
 			var id =
 				script.ScriptTokenStream.SkipWhile(t => !identifier.Contains(t.TokenType))
-					.TakeWhile(t => identifier.Contains(t.TokenType));
+					.TakeWhile(t => identifier.Contains(t.TokenType) || t.TokenType == TSqlTokenType.WhiteSpace)
+					.Where(t => identifier.Contains(t.TokenType));
 			var replaced = false;
 			definition = string.Join(string.Empty, script.ScriptTokenStream.Select(t => {
 				if (id.Contains(t)) {
