@@ -61,7 +61,7 @@ namespace SchemaZen.model {
 				after = Environment.NewLine + "GO" + Environment.NewLine + after;
 			
 			// correct the name if it is incorrect
-			var identifierEnd = new[] {TSqlTokenType.As, TSqlTokenType.On, TSqlTokenType.Variable};
+			var identifierEnd = new[] {TSqlTokenType.As, TSqlTokenType.On, TSqlTokenType.Variable, TSqlTokenType.LeftParenthesis};
 			var identifier = new[] {TSqlTokenType.Identifier, TSqlTokenType.QuotedIdentifier, TSqlTokenType.Dot};
 			IList<ParseError> errors;
 			TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(definition), out errors);
