@@ -61,14 +61,12 @@ namespace SchemaZen.model {
 				after = Environment.NewLine + "GO" + Environment.NewLine + after;
 			
 			// correct the name if it is incorrect
+			var identifierEnd = new[] {TSqlTokenType.As, TSqlTokenType.On, TSqlTokenType.Variable};
+			var identifier = new[] {TSqlTokenType.Identifier, TSqlTokenType.QuotedIdentifier, TSqlTokenType.Dot};
 			IList<ParseError> errors;
 			TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(definition), out errors);
-			var id = script.ScriptTokenStream.TakeWhile(
-				t => t.TokenType != TSqlTokenType.As && t.TokenType != TSqlTokenType.Variable)
-				.Where(
-					t =>
-						t.TokenType == TSqlTokenType.Identifier || t.TokenType == TSqlTokenType.QuotedIdentifier ||
-						t.TokenType == TSqlTokenType.Dot);
+			var id = script.ScriptTokenStream.TakeWhile(t => !identifierEnd.Contains(t.TokenType))
+				.Where(t => identifier.Contains(t.TokenType));
 			var replaced = false;
 			definition = string.Join(string.Empty, script.ScriptTokenStream.Select(t => {
 				if (id.Contains(t)) {
