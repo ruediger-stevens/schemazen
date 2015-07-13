@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace SchemaZen.model {
 	public class Routine {
@@ -57,13 +61,36 @@ namespace SchemaZen.model {
 				after = Environment.NewLine + "GO" + Environment.NewLine + after;
 			
 			// correct the name if it is incorrect
-			var regex = new Regex(string.Format(SqlCreateWithNameRegex, GetSQLTypeForRegEx()), RegexOptions.IgnoreCase | RegexOptions.Singleline);
+			var identifierEnd = new[] {TSqlTokenType.As, TSqlTokenType.On, TSqlTokenType.Variable, TSqlTokenType.LeftParenthesis};
+			var identifier = new[] {TSqlTokenType.Identifier, TSqlTokenType.QuotedIdentifier, TSqlTokenType.Dot};
+			var commentOrWhitespace = new[] {TSqlTokenType.MultilineComment, TSqlTokenType.SingleLineComment,TSqlTokenType.WhiteSpace};
+			IList<ParseError> errors;
+			TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(definition), out errors);
+			var id =
+				script.ScriptTokenStream.SkipWhile(t => !identifier.Contains(t.TokenType))
+					.TakeWhile(t => identifier.Contains(t.TokenType) || commentOrWhitespace.Contains(t.TokenType))
+					.Where(t => identifier.Contains(t.TokenType));
+			var replaced = false;
+			definition = string.Join(string.Empty, script.ScriptTokenStream.Select(t => {
+				if (id.Contains(t)) {
+					if (replaced)
+						return string.Empty;
+					else {
+						replaced = true;
+						return string.Format("[{0}].[{1}]", Schema, Name);
+					}
+				} else {
+					return t.Text;
+				}
+			}));
+
+			/*var regex = new Regex(string.Format(SqlCreateWithNameRegex, GetSQLTypeForRegEx()), RegexOptions.IgnoreCase | RegexOptions.Singleline);
 			var match = regex.Match(definition);
 			var group = match.Groups[2];
 			if (group.Success)
 			{
 				definition = Text.Substring(0, group.Index) + string.Format("[{0}].[{1}]", Schema, Name) + Text.Substring(group.Index + group.Length);
-			}
+			}*/
 			return before + definition + after;
 		}
 
@@ -92,15 +119,37 @@ namespace SchemaZen.model {
 
 
 		public string ScriptAlter(Database db) {
+			bool replaced = false;
+			string alter = null;
 			if (RoutineType != RoutineKind.XmlSchemaCollection) {
-				var regex = new Regex(SqlCreateRegex, RegexOptions.IgnoreCase);
+				/*var regex = new Regex(SqlCreateRegex, RegexOptions.IgnoreCase);
 				var match = regex.Match(Text);
 				var group = match.Groups[1];
 				if (group.Success) {
 					return ScriptBase(db, Text.Substring(0, group.Index) + "ALTER" + Text.Substring(group.Index + group.Length));
-				}
+				}*/
+				IList<ParseError> errors;
+				TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(Text), out errors);
+				
+				alter = ScriptBase(db, string.Join(string.Empty, script.ScriptTokenStream.Select(t =>
+				{
+					if (t.TokenType == TSqlTokenType.Create && !replaced)
+					{
+						replaced = true;
+						return "ALTER";
+					}
+					else
+					{
+						return t.Text;
+					}
+				})));
 			}
-			throw new Exception(string.Format("Unable to script routine {0} {1}.{2} as ALTER", RoutineType, Schema, Name));
+			if (replaced)
+				return alter;
+			else
+				throw new Exception(string.Format("Unable to script routine {0} {1}.{2} as ALTER", RoutineType, Schema, Name));
 		}
 	}
+
 }
+
