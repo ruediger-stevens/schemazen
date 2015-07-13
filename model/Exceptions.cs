@@ -12,10 +12,13 @@ namespace SchemaZen.model {
 
 		private readonly string message;
 
-		public SqlBatchException(SqlException ex, int prevLinesInBatch)
+	  private readonly string sql;
+
+		public SqlBatchException(SqlException ex, int prevLinesInBatch, string sql)
 			: base("", ex) {
 			lineNumber = ex.LineNumber + prevLinesInBatch;
 			message = ex.Message;
+		  this.sql = sql;
 		}
 
 		public int LineNumber {
@@ -23,15 +26,21 @@ namespace SchemaZen.model {
 		}
 
 		public override string Message {
-			get { return message; }
+			get { return message + " while executing " + sql; }
 		}
+
+	  public string SQL {
+	    get {
+	      return sql;
+	    }
+	  }
 	}
 
 	public class SqlFileException : SqlBatchException {
 		private readonly string fileName;
 
-		public SqlFileException(string fileName, SqlBatchException ex)
-			: base((SqlException) ex.InnerException, ex.LineNumber - 1) {
+    public SqlFileException(string fileName, SqlBatchException ex)
+			: base((SqlException) ex.InnerException, ex.LineNumber - 1, ex.SQL) {
 			this.fileName = fileName;
 		}
 

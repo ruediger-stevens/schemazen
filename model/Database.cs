@@ -120,7 +120,7 @@ namespace SchemaZen.model {
 
 		private static readonly string[] dirs = {
 			"tables", "foreign_keys", "assemblies", "functions", "procedures", "triggers",
-			"views", "xmlschemacollections", "data", "users", "synonyms"
+			"views", "xmlschemacollections", "data", "users_after_schema", "synonyms", "users"
     };
 
     private void SetPropOnOff(string propName, object dbVal) {
@@ -1109,7 +1109,11 @@ where name = @dbname
 					string.Format("{0}/{1}/{2}.sql", Dir, "users", MakeFileName(u.Name)),
 					u.ScriptCreate(this) + "\r\nGO\r\n"
 					);
-			}
+        File.WriteAllText(
+          string.Format("{0}/{1}/{2}.sql", Dir, "users_after_schema", MakeFileName(u.Name)),
+          u.ScriptAssignDefaultSchema(this) + "\r\nGO\r\n"
+          );
+      }
 
 			foreach (Synonym s in Synonyms)
 			{
@@ -1244,7 +1248,19 @@ end
 				DBHelper.ClearPool(Connection);
 			}
 
-			if (File.Exists(Dir + "/schemas.sql")) {
+      Console.WriteLine("Adding users...");
+      // foreign keys
+      if (Directory.Exists(Dir + "/users")) {
+        foreach (string f in Directory.GetFiles(Dir + "/users", "*.sql")) {
+          try {
+            DBHelper.ExecBatchSql(Connection, File.ReadAllText(f));
+          } catch (SqlBatchException ex) {
+            throw new SqlFileException(f, ex);
+          }
+        }
+      }
+      if (File.Exists(Dir + "/schemas.sql"))
+      {
 				try {
 					DBHelper.ExecBatchSql(Connection, File.ReadAllText(Dir + "/schemas.sql"));
 				} catch (SqlBatchException ex) {
@@ -1318,7 +1334,7 @@ end
 		private List<string> GetScripts() {
 			var scripts = new List<string>();
 			foreach (
-				string dirPath in dirs.Where(dir => dir != "foreign_keys").Select(dir => Dir + "/" + dir).Where(Directory.Exists)) {
+				string dirPath in dirs.Where(dir => (dir != "foreign_keys") && (dir != "users")).Select(dir => Dir + "/" + dir).Where(Directory.Exists)) {
 				scripts.AddRange(Directory.GetFiles(dirPath, "*.sql"));
 			}
 			return scripts;

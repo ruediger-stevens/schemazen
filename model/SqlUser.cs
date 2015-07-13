@@ -25,13 +25,19 @@ namespace SchemaZen.model {
 ", Name, "0x" + new SoapHexBinary(PasswordHash));
 
 			return login +
-			       string.Format("CREATE USER {0} {1} {2}{3}", Name, PasswordHash == null ? "WITHOUT LOGIN" : "FOR LOGIN " + Name,
-				       string.IsNullOrEmpty(DefaultSchema) ? string.Empty : "WITH DEFAULT_SCHEMA = ", DefaultSchema)
+			       string.Format("CREATE USER {0} {1}", Name, PasswordHash == null ? "WITHOUT LOGIN" : "FOR LOGIN " + Name)
 			       + "\r\n" +
 			       string.Join("\r\n",
 				       DatabaseRoles.Select(
 					       r => string.Format("/*ALTER ROLE {0} ADD MEMBER {1}*/ exec sp_addrolemember '{0}', '{1}'", r, Name))
 					       .ToArray());
 		}
-	}
+    public string ScriptAssignDefaultSchema(Database db)
+    {
+      if (!string.IsNullOrEmpty(DefaultSchema)) {
+        return string.Format("ALTER USER {0} WITH DEFAULT_SCHEMA = {1}", Name, DefaultSchema);
+      }
+      return string.Empty;
+    }
+  }
 }

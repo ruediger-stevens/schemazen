@@ -29,7 +29,7 @@ namespace SchemaZen.model {
 						try {
 							cm.ExecuteNonQuery();
 						} catch (SqlException ex) {
-							throw new SqlBatchException(ex, prevLines);
+							throw new SqlBatchException(ex, prevLines, script);
 						}
 
 						prevLines += script.Split('\n').Length;
