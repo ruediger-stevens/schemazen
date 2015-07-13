@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace SchemaZen.model {
 	public class Database {
@@ -68,6 +69,8 @@ namespace SchemaZen.model {
 		public List<Table> Tables = new List<Table>();
 		public List<SqlUser> Users = new List<SqlUser>();
 		public List<Constraint> ViewIndexes = new List<Constraint>();
+
+		public const string DefaultSchema = "dbo";
 
 		public DbProp FindProp(string name) {
 			return Props.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase));
@@ -1125,14 +1128,14 @@ where name = @dbname
 		}
 
 		private static string MakeFileName(string value) {
-			return MakeFileName("dbo", value);
+			return MakeFileName(DefaultSchema, value);
 		}
 
 		private static string MakeFileName(string schema, string name) {
 			// Dont' include schema name for objects in the dbo schema.
 			// This maintains backward compatability for those who use
 			// SchemaZen to keep their schemas under version control.
-			return schema.ToLower() == "dbo" ? name : string.Format("{0}.{1}", schema, name);
+			return schema.ToLower() == DefaultSchema ? name : string.Format("{0}.{1}", schema, name);
 		}
 
 		public void ExportData(string tableHint = null) {
@@ -1178,6 +1181,13 @@ end
 
 		#region Create
 
+		public void ParseSql (string sql) {
+			TSqlParser parser = new TSql110Parser(FindProp("QUOTED_IDENTIFIER").Value == "ON");
+			IList<ParseError> errors = null;
+			TSqlFragment fragment = parser.Parse(new StringReader(sql), out errors);
+			fragment.Accept(new ZenVisitor(this));
+		}
+
 		public void ImportData() {
 			string dataDir = Dir + "\\data";
 			if (!Directory.Exists(dataDir)) {
@@ -1186,7 +1196,7 @@ end
 
 			foreach (string f in Directory.GetFiles(dataDir)) {
 				var fi = new FileInfo(f);
-				string schema = "dbo";
+				string schema = DefaultSchema;
 				string table = Path.GetFileNameWithoutExtension(fi.Name);
 				if (table.Contains(".")) {
 					schema = fi.Name.Split('.')[0];
