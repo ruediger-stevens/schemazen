@@ -198,7 +198,7 @@ namespace SchemaZen.model {
 			        SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
 			          BulkCopyTimeout = 600,
 			        }) {
-			        bulk.DestinationTableName = Name;
+			        bulk.DestinationTableName = "[" + Owner + "]. [" + Name + "]";
 			        bulk.WriteToServer(dt);
 			      }
 			      dt.Rows.Clear();
@@ -213,8 +213,8 @@ namespace SchemaZen.model {
 		    SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
 		      BulkCopyTimeout = 600,
 		    }) {
-		    bulk.DestinationTableName = Name;
-		    bulk.WriteToServer(dt);
+        bulk.DestinationTableName = "[" + Owner + "]. [" + Name + "]";
+        bulk.WriteToServer(dt);
 		  }
 		}
 
