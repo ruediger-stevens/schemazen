@@ -156,6 +156,7 @@ namespace SchemaZen.model {
 			}
 			int i = 0;
       var sb = new StringBuilder();
+		  System.Threading.Tasks.Task lastTask = null;
 			while (true) {
 			  var ci = reader.Read();
         string line = null;
@@ -194,22 +195,35 @@ namespace SchemaZen.model {
 			    }
 			    dt.Rows.Add(row);
 			    if (dt.Rows.Count >= 100000) {
-			      using (var bulk = new SqlBulkCopy(conn,
-			        SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
-			          BulkCopyTimeout = 600,
-			        }) {
-			        bulk.DestinationTableName = "[" + Owner + "]. [" + Name + "]";
-			        bulk.WriteToServer(dt);
+			      if (lastTask != null) {
+			        lastTask.Wait();
 			      }
-			      dt.Rows.Clear();
-			    }
+			      var mydt = dt;
+			      lastTask = System.Threading.Tasks.Task.Factory.StartNew(() => {
+			        using (var bulk = new SqlBulkCopy(conn,
+			          SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
+			            BulkCopyTimeout = 600,
+			          }) {
+			          bulk.DestinationTableName = "[" + Owner + "]. [" + Name + "]";
+                bulk.WriteToServer(mydt);
+			        }
+			      });
+            dt = new DataTable(); ;
+            foreach (Column c in Columns.Items.Where(c => string.IsNullOrEmpty(c.ComputedDefinition)))
+            {
+              dt.Columns.Add(new DataColumn(c.Name, c.SqlTypeToNativeType()));
+            }
+          }
 			  }
 			  if (ci < 0) {
 			    break;
 			  }
 			}
 
-		  using (var bulk = new SqlBulkCopy(conn,
+      if (lastTask != null) {
+        lastTask.Wait();
+      }
+      using (var bulk = new SqlBulkCopy(conn,
 		    SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock) {
 		      BulkCopyTimeout = 600,
 		    }) {
