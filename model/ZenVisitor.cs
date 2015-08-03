@@ -70,47 +70,36 @@ namespace SchemaZen.model
 			return tokenText.ToString();
 		}
 
+		private void AddRoutine (Routine.RoutineKind kind, SchemaObjectName name, TSqlFragment node) {
+			AddRoutine(kind, name.SchemaIdentifier != null ? name.SchemaIdentifier.Value : Database.DefaultSchema, name.BaseIdentifier.Value, node);
+		}
+
+		private void AddRoutine(Routine.RoutineKind kind, string schema, string name, TSqlFragment node)
+		{
+			Routine r = new Routine(schema, name)
+			{
+				RoutineType = kind,
+				Text = GetNodeTokenText(node)
+			};
+
+			_db.Routines.Add(r);
+		}
+
 		public override void ExplicitVisit (CreateProcedureStatement node) {
 			base.ExplicitVisit(node);
-
-			string schema = node.ProcedureReference.Name.SchemaIdentifier != null ? node.ProcedureReference.Name.SchemaIdentifier.Value : Database.DefaultSchema;
-
-			Routine r = new Routine(schema, node.ProcedureReference.Name.BaseIdentifier.Value) {
-																								   RoutineType = Routine.RoutineKind.Procedure,
-																								   Text = GetNodeTokenText(node)
-																							   };
-			
-			_db.Routines.Add(r);
+			AddRoutine(Routine.RoutineKind.Procedure, node.ProcedureReference.Name, node);
 		}
 
 		public override void ExplicitVisit(CreateFunctionStatement node)
 		{
 			base.ExplicitVisit(node);
-
-			string schema = node.Name.SchemaIdentifier != null ? node.Name.SchemaIdentifier.Value : Database.DefaultSchema;
-
-			Routine r = new Routine(schema, node.Name.BaseIdentifier.Value)
-			{
-				RoutineType = Routine.RoutineKind.Function,
-				Text = GetNodeTokenText(node)
-			};
-
-			_db.Routines.Add(r);
+			AddRoutine(Routine.RoutineKind.Function, node.Name, node);
 		}
 
 		public override void ExplicitVisit(CreateViewStatement node)
 		{
 			base.ExplicitVisit(node);
-
-			string schema = node.SchemaObjectName.SchemaIdentifier != null ? node.SchemaObjectName.SchemaIdentifier.Value : Database.DefaultSchema;
-			
-			Routine r = new Routine(schema, node.SchemaObjectName.BaseIdentifier.Value)
-			{
-				RoutineType = Routine.RoutineKind.View,
-				Text = GetNodeTokenText(node)
-			};
-
-			_db.Routines.Add(r);
+			AddRoutine(Routine.RoutineKind.View, node.SchemaObjectName, node);
 		}
 	}
 }
