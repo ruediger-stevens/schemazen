@@ -58,5 +58,29 @@ namespace SchemaZen.model
 
 			_db.Tables.Add(t);
 		}
+
+		private string GetNodeTokenText(TSqlFragment fragment)
+		{
+			StringBuilder tokenText = new StringBuilder();
+			for (int counter = fragment.FirstTokenIndex; counter <= fragment.LastTokenIndex; counter++)
+			{
+				tokenText.Append(fragment.ScriptTokenStream[counter].Text);
+			}
+
+			return tokenText.ToString();
+		}
+
+		public override void ExplicitVisit (CreateProcedureStatement node) {
+			base.ExplicitVisit(node);
+
+			string schema = node.ProcedureReference.Name.SchemaIdentifier != null ? node.ProcedureReference.Name.SchemaIdentifier.Value : Database.DefaultSchema;
+
+			Routine r = new Routine(schema, node.ProcedureReference.Name.BaseIdentifier.Value) {
+																								   RoutineType = Routine.RoutineKind.Procedure,
+																								   Text = GetNodeTokenText(node)
+																							   };
+			
+			_db.Routines.Add(r);
+		}
 	}
 }
