@@ -82,5 +82,35 @@ namespace SchemaZen.model
 			
 			_db.Routines.Add(r);
 		}
+
+		public override void ExplicitVisit(CreateFunctionStatement node)
+		{
+			base.ExplicitVisit(node);
+
+			string schema = node.Name.SchemaIdentifier != null ? node.Name.SchemaIdentifier.Value : Database.DefaultSchema;
+
+			Routine r = new Routine(schema, node.Name.BaseIdentifier.Value)
+			{
+				RoutineType = Routine.RoutineKind.Function,
+				Text = GetNodeTokenText(node)
+			};
+
+			_db.Routines.Add(r);
+		}
+
+		public override void ExplicitVisit(CreateViewStatement node)
+		{
+			base.ExplicitVisit(node);
+
+			string schema = node.SchemaObjectName.SchemaIdentifier != null ? node.SchemaObjectName.SchemaIdentifier.Value : Database.DefaultSchema;
+			
+			Routine r = new Routine(schema, node.SchemaObjectName.BaseIdentifier.Value)
+			{
+				RoutineType = Routine.RoutineKind.View,
+				Text = GetNodeTokenText(node)
+			};
+
+			_db.Routines.Add(r);
+		}
 	}
 }
