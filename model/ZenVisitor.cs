@@ -59,12 +59,16 @@ namespace SchemaZen.model
 			_db.Tables.Add(t);
 		}
 
-		private string GetNodeTokenText(TSqlFragment fragment)
+		private static IEnumerable<TSqlParserToken> GetNodesInFragment(TSqlFragment fragment) {
+			return Enumerable.Range(fragment.FirstTokenIndex, fragment.LastTokenIndex - fragment.FirstTokenIndex).Select(x => fragment.ScriptTokenStream[x]);
+		}
+
+		private static string GetNodeTokenText(TSqlFragment fragment)
 		{
 			StringBuilder tokenText = new StringBuilder();
-			for (int counter = fragment.FirstTokenIndex; counter <= fragment.LastTokenIndex; counter++)
+			foreach (var token in GetNodesInFragment(fragment).Select(f => f.Text))
 			{
-				tokenText.Append(fragment.ScriptTokenStream[counter].Text);
+				tokenText.Append(token);
 			}
 
 			return tokenText.ToString();
