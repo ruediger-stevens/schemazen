@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Remoting.Metadata.W3cXsd2001;
 using System.Text;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace SchemaZen.model
 {
 	public class ZenVisitor : TSqlFragmentVisitor {
-		private Database _db;
+		private readonly Database _db;
 
 		public ZenVisitor (Database db) {
 			_db = db;
@@ -36,7 +37,7 @@ namespace SchemaZen.model
 					throw new NotImplementedException(string.Format("Unable to parse DataType {0}", col.DataType.Name));
 				column.Position = pos;
 				column.IsRowGuidCol = col.IsRowGuidCol;
-				column.ComputedDefinition = col.ComputedColumnExpression == null ? null : col.ComputedColumnExpression.ToString();
+				column.ComputedDefinition = col.ComputedColumnExpression?.ToString();
 				if (col.IdentityOptions != null)
 					column.Identity = new Identity(int.Parse(((IntegerLiteral) col.IdentityOptions.IdentitySeed).Value), int.Parse(((IntegerLiteral) col.IdentityOptions.IdentityIncrement).Value));
 				
@@ -104,6 +105,38 @@ namespace SchemaZen.model
 		{
 			base.ExplicitVisit(node);
 			AddRoutine(Routine.RoutineKind.View, node.SchemaObjectName, node);
+		}
+
+		public override void ExplicitVisit (CreateSynonymStatement node) {
+			base.ExplicitVisit(node);
+			_db.Synonyms.Add(new Synonym(node.Name.BaseIdentifier.Value, node.Name.SchemaIdentifier?.Value ?? Database.DefaultSchema) {
+																																		  BaseObjectName = node.ForName.ToString()
+																																	  });
+		}
+
+		public override void ExplicitVisit (CreateUserStatement node) {
+			base.ExplicitVisit(node);
+			SqlUser u = _db.FindUser(node.Name.Value);
+			string defaultSchemaForUser = (node.UserOptions.FirstOrDefault(uo => uo.OptionKind == PrincipalOptionKind.DefaultSchema) as IdentifierPrincipalOption)?.Identifier.Value ?? Database.DefaultSchema;
+			if (u == null)
+				_db.Users.Add(new SqlUser(node.Name.Value, defaultSchemaForUser));
+			else
+				u.DefaultSchema = defaultSchemaForUser;
+		}
+
+		public override void ExplicitVisit (CreateLoginStatement node) {
+			base.ExplicitVisit(node);
+			SqlUser u = _db.FindUser(node.Name.Value);
+			if (u == null) {
+				u = new SqlUser(node.Name.Value, Database.DefaultSchema);
+				_db.Users.Add(u);
+			}
+			PasswordCreateLoginSource source = node.Source as PasswordCreateLoginSource;
+			if (source != null) {
+				if (source.Hashed)
+					u.PasswordHash = SoapHexBinary.Parse(((BinaryLiteral)source.Password).Value.Substring("0x".Length)).Value;
+			}
+
 		}
 	}
 }
