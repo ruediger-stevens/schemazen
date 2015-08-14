@@ -17,7 +17,7 @@ namespace SchemaZen.model
 		public override void ExplicitVisit (CreateTableStatement node) {
 			base.ExplicitVisit(node);
 
-			string schema = node.SchemaObjectName.SchemaIdentifier != null ? node.SchemaObjectName.SchemaIdentifier.Value : Database.DefaultSchema;
+			string schema = node.SchemaObjectName.SchemaIdentifier?.Value ?? Database.DefaultSchema;
 
 			Table t = new Table(schema, node.SchemaObjectName.BaseIdentifier.Value);
 			var pos = 1;
@@ -76,7 +76,7 @@ namespace SchemaZen.model
 		}
 
 		private void AddRoutine (Routine.RoutineKind kind, SchemaObjectName name, TSqlFragment node) {
-			AddRoutine(kind, name.SchemaIdentifier != null ? name.SchemaIdentifier.Value : Database.DefaultSchema, name.BaseIdentifier.Value, node);
+			AddRoutine(kind, name.SchemaIdentifier?.Value ?? Database.DefaultSchema, name.BaseIdentifier.Value, node);
 		}
 
 		private void AddRoutine(Routine.RoutineKind kind, string schema, string name, TSqlFragment node)
@@ -158,6 +158,11 @@ namespace SchemaZen.model
 					user.DatabaseRoles.Add(((StringLiteral)role.ParameterValue).Value);
 				}
 			}
+		}
+
+		public override void ExplicitVisit (CreateXmlSchemaCollectionStatement node) {
+			base.ExplicitVisit(node);
+			AddRoutine(Routine.RoutineKind.XmlSchemaCollection, node.Name, node);
 		}
 	}
 }
