@@ -138,5 +138,26 @@ namespace SchemaZen.model
 			}
 
 		}
+
+		public override void ExplicitVisit (ExecuteStatement node) {
+			base.ExplicitVisit(node);
+
+			var proc = node.ExecuteSpecification.ExecutableEntity as ExecutableProcedureReference;
+			if (proc != null) {
+				if (proc.ProcedureReference.ProcedureReference.Name.BaseIdentifier.Value == "sp_addrolemember") {
+					ExecuteParameter role;
+					ExecuteParameter member;
+					if (proc.Parameters.Any(p => p.Variable == null)) {
+						role = proc.Parameters.First();
+						member = proc.Parameters.Last();
+					} else {
+						role = proc.Parameters.First(p => p.Variable.Name == "rolename");
+						member = proc.Parameters.First(p => p.Variable.Name == "membername");
+					}
+					var user = _db.FindUser(((StringLiteral)member.ParameterValue).Value);
+					user.DatabaseRoles.Add(((StringLiteral)role.ParameterValue).Value);
+				}
+			}
+		}
 	}
 }
