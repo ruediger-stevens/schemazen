@@ -17,7 +17,7 @@ namespace SchemaZen.model
 		public override void ExplicitVisit (CreateTableStatement node) {
 			base.ExplicitVisit(node);
 
-			string schema = node.SchemaObjectName.SchemaIdentifier?.Value ?? Database.DefaultSchema;
+			string schema = (node.SchemaObjectName.SchemaIdentifier == null || node.SchemaObjectName.SchemaIdentifier.Value == null) ? Database.DefaultSchema : node.SchemaObjectName.SchemaIdentifier.Value;
 
 			Table t = new Table(schema, node.SchemaObjectName.BaseIdentifier.Value);
 			var pos = 1;
@@ -37,7 +37,8 @@ namespace SchemaZen.model
 					throw new NotImplementedException(string.Format("Unable to parse DataType {0}", col.DataType.Name));
 				column.Position = pos;
 				column.IsRowGuidCol = col.IsRowGuidCol;
-				column.ComputedDefinition = col.ComputedColumnExpression?.ToString();
+				if (col.ComputedColumnExpression != null)
+					column.ComputedDefinition = col.ComputedColumnExpression.ToString();
 				if (col.IdentityOptions != null)
 					column.Identity = new Identity(int.Parse(((IntegerLiteral) col.IdentityOptions.IdentitySeed).Value), int.Parse(((IntegerLiteral) col.IdentityOptions.IdentityIncrement).Value));
 				
@@ -76,7 +77,7 @@ namespace SchemaZen.model
 		}
 
 		private void AddRoutine (Routine.RoutineKind kind, SchemaObjectName name, TSqlFragment node) {
-			AddRoutine(kind, name.SchemaIdentifier?.Value ?? Database.DefaultSchema, name.BaseIdentifier.Value, node);
+			AddRoutine(kind, (name.SchemaIdentifier == null || name.SchemaIdentifier.Value == null) ? Database.DefaultSchema : name.SchemaIdentifier.Value, name.BaseIdentifier.Value, node);
 		}
 
 		private void AddRoutine(Routine.RoutineKind kind, string schema, string name, TSqlFragment node)
@@ -109,7 +110,8 @@ namespace SchemaZen.model
 
 		public override void ExplicitVisit (CreateSynonymStatement node) {
 			base.ExplicitVisit(node);
-			_db.Synonyms.Add(new Synonym(node.Name.BaseIdentifier.Value, node.Name.SchemaIdentifier?.Value ?? Database.DefaultSchema) {
+			
+			_db.Synonyms.Add(new Synonym(node.Name.BaseIdentifier.Value, (node.Name.SchemaIdentifier == null || node.Name.SchemaIdentifier.Value == null) ? Database.DefaultSchema : node.Name.SchemaIdentifier.Value) {
 																																		  BaseObjectName = node.ForName.ToString()
 																																	  });
 		}
@@ -117,7 +119,8 @@ namespace SchemaZen.model
 		public override void ExplicitVisit (CreateUserStatement node) {
 			base.ExplicitVisit(node);
 			SqlUser u = _db.FindUser(node.Name.Value);
-			string defaultSchemaForUser = (node.UserOptions.FirstOrDefault(uo => uo.OptionKind == PrincipalOptionKind.DefaultSchema) as IdentifierPrincipalOption)?.Identifier.Value ?? Database.DefaultSchema;
+			IdentifierPrincipalOption option = node.UserOptions.FirstOrDefault(uo => uo.OptionKind == PrincipalOptionKind.DefaultSchema) as IdentifierPrincipalOption;
+			string defaultSchemaForUser = (option == null || option.Identifier.Value == null) ? Database.DefaultSchema : option.Identifier.Value;
 			if (u == null)
 				_db.Users.Add(new SqlUser(node.Name.Value, defaultSchemaForUser));
 			else

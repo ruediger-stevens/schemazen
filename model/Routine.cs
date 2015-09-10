@@ -23,9 +23,6 @@ namespace SchemaZen.model {
 		public string Schema;
 		public string Text;
 
-		private const string SqlCreateRegex = @"\A" + Database.SqlWhitespaceOrCommentRegex + @"*?(CREATE)" + Database.SqlWhitespaceOrCommentRegex;
-		private const string SqlCreateWithNameRegex = SqlCreateRegex + @"+{0}" + Database.SqlWhitespaceOrCommentRegex + @"+?(" + Database.SqlEnclosedIdentifierRegex + @"\." + Database.SqlEnclosedIdentifierRegex + @"|" + Database.SqlEnclosedIdentifierRegex + @"|\S+)(?:\(|" + Database.SqlWhitespaceOrCommentRegex + @")";
-
 		public Routine(string schema, string name) {
 			Schema = schema;
 			Name = name;
@@ -60,6 +57,7 @@ namespace SchemaZen.model {
 			if (after != string.Empty)
 				after = Environment.NewLine + "GO" + Environment.NewLine + after;
 			
+#if FixRoutineNames
 			// correct the name if it is incorrect
 			var identifierEnd = new[] {TSqlTokenType.As, TSqlTokenType.On, TSqlTokenType.Variable, TSqlTokenType.LeftParenthesis};
 			var identifier = new[] {TSqlTokenType.Identifier, TSqlTokenType.QuotedIdentifier, TSqlTokenType.Dot};
@@ -69,7 +67,7 @@ namespace SchemaZen.model {
 			var id =
 				script.ScriptTokenStream.SkipWhile(t => !identifier.Contains(t.TokenType))
 					.TakeWhile(t => identifier.Contains(t.TokenType) || commentOrWhitespace.Contains(t.TokenType))
-					.Where(t => identifier.Contains(t.TokenType));
+					.Where(t => identifier.Contains(t.TokenType)).ToArray();
 			var replaced = false;
 			definition = string.Join(string.Empty, script.ScriptTokenStream.Select(t => {
 				if (id.Contains(t)) {
@@ -83,14 +81,7 @@ namespace SchemaZen.model {
 					return t.Text;
 				}
 			}));
-
-			/*var regex = new Regex(string.Format(SqlCreateWithNameRegex, GetSQLTypeForRegEx()), RegexOptions.IgnoreCase | RegexOptions.Singleline);
-			var match = regex.Match(definition);
-			var group = match.Groups[2];
-			if (group.Success)
-			{
-				definition = Text.Substring(0, group.Index) + string.Format("[{0}].[{1}]", Schema, Name) + Text.Substring(group.Index + group.Length);
-			}*/
+#endif
 			return before + definition + after;
 		}
 
@@ -122,12 +113,6 @@ namespace SchemaZen.model {
 			bool replaced = false;
 			string alter = null;
 			if (RoutineType != RoutineKind.XmlSchemaCollection) {
-				/*var regex = new Regex(SqlCreateRegex, RegexOptions.IgnoreCase);
-				var match = regex.Match(Text);
-				var group = match.Groups[1];
-				if (group.Success) {
-					return ScriptBase(db, Text.Substring(0, group.Index) + "ALTER" + Text.Substring(group.Index + group.Length));
-				}*/
 				IList<ParseError> errors;
 				TSqlFragment script = new TSql120Parser(initialQuotedIdentifiers: QuotedId).Parse(new StringReader(Text), out errors);
 				
