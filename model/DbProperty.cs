@@ -1,7 +1,5 @@
 ﻿namespace SchemaZen.model {
 	public class DbProp {
-		public Database _db;
-
 		public DbProp(string name, string value) {
 			Name = name;
 			Value = value;

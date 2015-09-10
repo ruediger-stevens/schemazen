@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace SchemaZen.model {
   public class Database {
@@ -54,6 +55,7 @@ namespace SchemaZen.model {
     #region " Properties "
 
 		public List<SqlAssembly> Assemblies = new List<SqlAssembly>();
+<<<<<<< HEAD
     public string Connection = "";
     public List<Table> DataTables = new List<Table>();
     public string Dir = "";
@@ -117,6 +119,73 @@ namespace SchemaZen.model {
     }
 
     #endregion
+=======
+		public string Connection = "";
+		public List<Table> DataTables = new List<Table>();
+		public string Dir = "";
+		public List<ForeignKey> ForeignKeys = new List<ForeignKey>();
+		public string Name;
+
+		public List<DbProp> Props = new List<DbProp>();
+		public List<Routine> Routines = new List<Routine>();
+		public List<Schema> Schemas = new List<Schema>();
+		public List<Synonym> Synonyms = new List<Synonym>();
+		public List<Table> TableTypes = new List<Table>();
+		public List<Table> Tables = new List<Table>();
+		public List<SqlUser> Users = new List<SqlUser>();
+		public List<Constraint> ViewIndexes = new List<Constraint>();
+
+		public const string DefaultSchema = "dbo";
+
+		public DbProp FindProp(string name) {
+			return Props.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase));
+		}
+
+		public Table FindTable(string name, string owner, bool isTableType = false)
+		{
+			return FindTableBase(isTableType ? TableTypes : Tables, name, owner);
+		}
+
+		private static Table FindTableBase(IEnumerable<Table> tables, string name, string owner)
+		{
+			return tables.FirstOrDefault(t => t.Name == name && t.Owner == owner);
+		}
+
+		public Constraint FindConstraint(string name) {
+			return Tables.SelectMany(t => t.Constraints).FirstOrDefault(c => c.Name == name);
+		}
+
+		public ForeignKey FindForeignKey(string name) {
+			return ForeignKeys.FirstOrDefault(fk => fk.Name == name);
+		}
+
+		public Routine FindRoutine(string name, string schema) {
+			return Routines.FirstOrDefault(r => r.Name == name && r.Schema == schema);
+		}
+
+		public SqlAssembly FindAssembly(string name) {
+			return Assemblies.FirstOrDefault(a => a.Name == name);
+		}
+
+		public SqlUser FindUser(string name) {
+			return Users.FirstOrDefault(u => u.Name == name);
+		}
+
+		public Constraint FindViewIndex(string name) {
+			return ViewIndexes.FirstOrDefault(c => c.Name == name);
+		}
+
+		public Synonym FindSynonym(string name, string schema)
+		{
+			return Synonyms.FirstOrDefault(s => s.Name == name && s.Schema == schema);
+		}
+
+		public List<Table> FindTablesRegEx(string pattern) {
+			return Tables.Where(t => Regex.Match(t.Name, pattern).Success).ToList();
+		}
+
+		#endregion
+>>>>>>> sqlparser-patch
 
 		private static readonly string[] dirs = {
 			"tables", "foreign_keys", "assemblies", "functions", "procedures", "triggers",
@@ -1141,14 +1210,14 @@ where name = @dbname
 		}
 
 		private static string MakeFileName(string value) {
-			return MakeFileName("dbo", value);
+			return MakeFileName(DefaultSchema, value);
 		}
 
 		private static string MakeFileName(string schema, string name) {
 			// Dont' include schema name for objects in the dbo schema.
 			// This maintains backward compatability for those who use
 			// SchemaZen to keep their schemas under version control.
-			return schema.ToLower() == "dbo" ? name : string.Format("{0}.{1}", schema, name);
+			return schema.ToLower() == DefaultSchema ? name : string.Format("{0}.{1}", schema, name);
 		}
 
 		public void ExportData(string tableHint = null) {
@@ -1194,6 +1263,13 @@ end
 
 		#region Create
 
+		public void ParseSql (string sql) {
+			TSqlParser parser = new TSql110Parser(FindProp("QUOTED_IDENTIFIER").Value == "ON");
+			IList<ParseError> errors = null;
+			TSqlFragment fragment = parser.Parse(new StringReader(sql), out errors);
+			fragment.Accept(new ZenVisitor(this));
+		}
+
 		public void ImportData() {
 			string dataDir = Dir + "\\data";
 			if (!Directory.Exists(dataDir)) {
@@ -1202,7 +1278,7 @@ end
 
 			foreach (string f in Directory.GetFiles(dataDir)) {
 				var fi = new FileInfo(f);
-				string schema = "dbo";
+				string schema = DefaultSchema;
 				string table = Path.GetFileNameWithoutExtension(fi.Name);
 				if (table.Contains(".")) {
 					schema = fi.Name.Split('.')[0];
