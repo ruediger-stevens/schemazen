@@ -470,6 +470,7 @@ order by fk.name, fkc.constraint_column_id
 							and c.column_id = ic.column_id
 						inner join sys.schemas s on s.schema_id = t.schema_id
 						inner join sys.stats st on (st.object_id = t.object_id) and (st.stats_id = i.index_id)
+					where i.type_desc != 'HEAP'
 					order by s.name, t.name, i.name, ic.key_ordinal, ic.index_column_id";
           using (SqlDataReader dr = cm.ExecuteReader())
           {
@@ -1165,7 +1166,10 @@ where name = @dbname
 			// Dont' include schema name for objects in the dbo schema.
 			// This maintains backward compatability for those who use
 			// SchemaZen to keep their schemas under version control.
-			return schema.ToLower() == "dbo" ? name : string.Format("{0}.{1}", schema, name);
+			var fileName = schema.ToLower() == "dbo" ? name : string.Format("{0}.{1}", schema, name);
+			foreach (var invalidChar in Path.GetInvalidFileNameChars())
+				fileName = fileName.Replace(invalidChar, '-');
+			return fileName;
 		}
 
 		public void ExportData(string tableHint = null) {
