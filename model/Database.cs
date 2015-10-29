@@ -447,6 +447,14 @@ order by fk.name, fkc.constraint_column_id
 						i.is_unique_constraint,
 						i.is_unique, 
 						i.type_desc,
+
+						i.ignore_dup_key,
+						i.fill_factor,
+						i.is_padded,
+						i.allow_row_locks,
+						i.allow_page_locks,
+						st.no_recompute,
+
 						isnull(ic.is_included_column, 0) as is_included_column
 					from (
 						select object_id, name, schema_id, 'T' as baseType
@@ -461,6 +469,7 @@ order by fk.name, fkc.constraint_column_id
 						inner join sys.columns c on c.object_id = t.object_id
 							and c.column_id = ic.column_id
 						inner join sys.schemas s on s.schema_id = t.schema_id
+						inner join sys.stats st on (st.object_id = t.object_id) and (st.stats_id = i.index_id)
 					order by s.name, t.name, i.name, ic.key_ordinal, ic.index_column_id";
           using (SqlDataReader dr = cm.ExecuteReader())
           {
@@ -472,7 +481,15 @@ order by fk.name, fkc.constraint_column_id
               Constraint c = t.FindConstraint((string)dr["indexName"]);
               if (c == null)
               {
-                c = new Constraint((string)dr["indexName"], "", "");
+                c = new Constraint((string)dr["indexName"], 
+                  "", 
+                  "",
+                  (bool)dr["ignore_dup_key"],
+                  (byte)dr["fill_factor"],
+                  (bool)dr["is_padded"],
+                  (bool)dr["allow_row_locks"],
+                  (bool)dr["allow_page_locks"],
+                  (bool)dr["no_recompute"]);
                 t.Constraints.Add(c);
                 c.Table = t;
 
