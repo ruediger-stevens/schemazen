@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Runtime.Remoting.Metadata.W3cXsd2001;
 
-namespace SchemaZen.model {
-	public class Column {
+namespace SchemaZen.model
+{
+	public class Column
+	{
 		public Default Default;
 		public Identity Identity;
 		public bool IsNullable;
@@ -12,13 +14,14 @@ namespace SchemaZen.model {
 		public byte Precision;
 		public int Scale;
 		public string Type;
-    public string CollationName;
+		public string CollationName;
 		public string ComputedDefinition;
 		public bool IsRowGuidCol;
 
 		public Column() { }
 
-		public Column(string name, string type, bool nullable, Default defaultValue) {
+		public Column(string name, string type, bool nullable, Default defaultValue)
+		{
 			Name = name;
 			Type = type;
 			Default = defaultValue;
@@ -38,31 +41,40 @@ namespace SchemaZen.model {
 			Scale = scale;
 		}
 
-		private string IsNullableText {
-			get {
+		private string IsNullableText
+		{
+			get
+			{
 				if (IsNullable || !string.IsNullOrEmpty(ComputedDefinition)) return "NULL";
 				return "NOT NULL";
 			}
 		}
 
-	  private string CollationNameText {
-	    get {
-	      if (CollationName != null) {
-	        return "COLLATE " + CollationName;
-	      }
-        return string.Empty;
-	    }
-	  }
+		private string CollationNameText
+		{
+			get
+			{
+				if (!string.IsNullOrEmpty(CollationName))
+				{
+					return "COLLATE " + CollationName;
+				}
+				return string.Empty;
+			}
+		}
 
-		public string DefaultText {
-			get {
+		public string DefaultText
+		{
+			get
+			{
 				if (Default == null || !string.IsNullOrEmpty(ComputedDefinition)) return "";
 				return "\r\n      " + Default.ScriptAsPartOfColumnDefinition();
 			}
 		}
 
-		public string IdentityText {
-			get {
+		public string IdentityText
+		{
+			get
+			{
 				if (Identity == null) return "";
 				return "\r\n      " + Identity.Script();
 			}
@@ -76,7 +88,8 @@ namespace SchemaZen.model {
 			}
 		}
 
-		public ColumnDiff Compare(Column c) {
+		public ColumnDiff Compare(Column c)
+		{
 			return new ColumnDiff(this, c);
 		}
 
@@ -134,11 +147,13 @@ namespace SchemaZen.model {
 			}
 		}
 
-		public string ScriptCreate() {
+		public string ScriptCreate()
+		{
 			return ScriptBase(true);
 		}
 
-		public string ScriptAlter() {
+		public string ScriptAlter()
+		{
 			return ScriptBase(false);
 		}
 
@@ -162,21 +177,25 @@ namespace SchemaZen.model {
 			}
 		}
 
-		public Type SqlTypeToNativeType () {
+		public Type SqlTypeToNativeType()
+		{
 			return SqlTypeToNativeType(Type);
 		}
 	}
 
-	public class ColumnDiff {
+	public class ColumnDiff
+	{
 		public Column Source;
 		public Column Target;
 
-		public ColumnDiff(Column target, Column source) {
+		public ColumnDiff(Column target, Column source)
+		{
 			Source = source;
 			Target = target;
 		}
 
-		public bool IsDiff {
+		public bool IsDiff
+		{
 			get
 			{
 				return IsDiffBase || DefaultIsDiff;

@@ -140,5 +140,22 @@ namespace SchemaZen.test {
 			t.Columns.Add(new Column("a", "madeuptype", true, null));
 			t.ScriptCreate();
 		}
+
+		[Test]
+		public void TestCreateTableParser () {
+			var t = new Table("dbo", "Status");
+			t.Columns.Add(new Column("id", "int", false, null){Position = 1});
+			t.Columns.Add(new Column("code", "char", 1, false, null){Position = 2});
+			t.Columns.Add(new Column("description", "varchar", 20, false, null){Position = 3});
+			t.Columns.Find("id").Identity = new Identity(1, 1);
+			t.Constraints.Add(new Constraint("PK_Status", "PRIMARY KEY", "id"));
+
+			var db = new Database();
+			var script = t.ScriptCreate();
+			db.ParseSql(script);
+			var t2 = db.FindTable("Status", "dbo");
+			var diff = t2.Compare(t);
+			Assert.IsFalse(diff.IsDiff);
+		}
 	}
 }
