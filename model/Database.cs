@@ -838,7 +838,6 @@ where name = @dbname
 			{
 				if (dr.Read())
 				{
-					SetPropString("COLLATION_NAME", dr["collation_name"]);
 					SetPropString("COMPATIBILITY_LEVEL", dr["compatibility_level"]);
 					SetPropString("COLLATE", dr["collation_name"]);
 					SetPropOnOff("AUTO_CLOSE", dr["is_auto_close_on"]);
@@ -1154,7 +1153,7 @@ where name = @dbname
 			{
 				// delete the existing script files
 				foreach (string f in
-					dirs.Select(dir => Path.Combine(Dir, dir)).Where(Directory.Exists).SelectMany(Directory.GetFiles))
+					Dirs.Select(dir => Path.Combine(Dir, dir)).Where(Directory.Exists).SelectMany(Directory.GetFiles))
 				{
 					File.Delete(f);
 				}
@@ -1210,7 +1209,13 @@ where name = @dbname
 																		MakeFileName(u.Name)
 																	}));
 
-			files = files.Concat(Synonyms.SelectMany(s => new string[] {
+      files = files.Concat(Users.SelectMany(u => new string[] {
+																		u.ScriptAssignDefaultSchema(this),
+																		"users_after_schema",
+																		MakeFileName(u.Name)
+																	}));
+
+      files = files.Concat(Synonyms.SelectMany(s => new string[] {
 																			 s.ScriptCreate(),
 																			 "synonyms",
 																			 MakeFileName(s)
