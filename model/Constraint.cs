@@ -52,8 +52,10 @@ namespace SchemaZen.model {
 		  {
         var flagsBuilder = new System.Text.StringBuilder();
         AddFlag(flagsBuilder, "IGNORE_DUP_KEY", IgnoreDupKey);
-        AddFlag(flagsBuilder, "FILLFACTOR", FillFactor);
-        AddFlag(flagsBuilder, "PAD_INDEX", IsPadded);
+		    if (FillFactor > 0) {
+		      AddFlag(flagsBuilder, "FILLFACTOR", FillFactor);
+		    }
+		    AddFlag(flagsBuilder, "PAD_INDEX", IsPadded);
         AddFlag(flagsBuilder, "ALLOW_ROW_LOCKS", AllowRowLocks);
         AddFlag(flagsBuilder, "ALLOW_PAGE_LOCKS", AllowPageLocks);
         AddFlag(flagsBuilder, "STATISTICS_NORECOMPUTE", StatisticsNoRecompute);
