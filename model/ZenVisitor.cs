@@ -50,7 +50,14 @@ namespace SchemaZen.model
 				if (con is UniqueConstraintDefinition) {
 					var unique = (UniqueConstraintDefinition)con;
 
-					t.Constraints.Add(new Constraint(unique.ConstraintIdentifier.Value, unique.IsPrimaryKey ? "PRIMARY KEY" : "UNIQUE", string.Join(",", unique.Columns.Select(c => c.Column.MultiPartIdentifier.Identifiers.Select(i => i.Value).First()))) {
+					t.Constraints.Add(new Constraint(unique.ConstraintIdentifier.Value, unique.IsPrimaryKey ? "PRIMARY KEY" : "UNIQUE", 
+            string.Join(",", unique.Columns.Select(c => c.Column.MultiPartIdentifier.Identifiers.Select(i => i.Value).First())),
+            false,
+            0,
+            false,
+            true,
+            true,
+            false) {
 																																																																 Clustered = unique.Clustered ?? false,
 																																																																 Unique = true
 																																																															 });
