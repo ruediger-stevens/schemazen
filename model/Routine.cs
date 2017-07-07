@@ -61,7 +61,6 @@ namespace SchemaZen.model {
 			if (after != string.Empty)
 				after = Environment.NewLine + "GO" + Environment.NewLine + after;
 			
-#if FixRoutineNames
 			// correct the name if it is incorrect
 			var identifierEnd = new[] {TSqlTokenType.As, TSqlTokenType.On, TSqlTokenType.Variable, TSqlTokenType.LeftParenthesis};
 			var identifier = new[] {TSqlTokenType.Identifier, TSqlTokenType.QuotedIdentifier, TSqlTokenType.Dot};
@@ -85,7 +84,6 @@ namespace SchemaZen.model {
 					return t.Text;
 				}
 			}));
-#endif
 			return before + definition + after;
 		}
 
