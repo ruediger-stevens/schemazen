@@ -62,13 +62,13 @@ namespace SchemaZen.model {
 		    flags = flagsBuilder.ToString();
 		  }
 			if (Type == "INDEX") {
-        string sql = string.Format("CREATE {0} {1} INDEX [{2}] ON [{3}].[{4}] ([{5}])" + System.Environment.NewLine + "  WITH({6})", UniqueText, ClusteredText, Name,
+        string sql = string.Format("CREATE {0} {1} INDEX [{2}] ON [{3}].[{4}] ([{5}])", UniqueText, ClusteredText, Name,
 					Table.Owner, Table.Name,
-					string.Join("], [", Columns.ToArray()),
-          flags);
+					string.Join("], [", Columns.ToArray()));
 				if (IncludedColumns.Count > 0) {
 					sql += string.Format(" INCLUDE ([{0}])", string.Join("], [", IncludedColumns.ToArray()));
 				}
+				sql += System.Environment.NewLine + string.Format(" WITH({0})", flags);
 				return sql;
 			}
       return string.Format("CONSTRAINT [{0}] {1} {2} ([{3}])" + System.Environment.NewLine + "  WITH({4})", Name, Type, ClusteredText,
